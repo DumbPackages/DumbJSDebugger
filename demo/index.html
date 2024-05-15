@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <title>dumbdebugger JS demo</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/spectre.css/dist/spectre.min.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css"
+  />
+</head>
+<body>
+<div
+  class="container p-centered"
+  style="width: 800px; text-align: center;"
+>
+  <div class="columns">
+    <div class="column col-12">
+      <div class="py-2">
+        <div class="h1">Dumbdebugger demo</div>
+      </div>
+    </div>
+  </div>
+  <div class="columns">
+    All the stuff is in console.
+  </div>
+</div>
+<template id="vjs-error-template">
+  <div>
+    <div style="margin-top: 6px;" class="label label-error" data-vjs-error-message></div>
+  </div>
+</template>
+<script type="module">
+
+  import {Dumbdebugger} from '../dist/index.js';
+  const deburgger = new Dumbdebugger();
+  console.log(deburgger)
+  deburgger.start(['logs', 'network'])
+
+  fetch('https://jsonplaceholder.typicode.com/todos').then((res)=>{
+    console.log(res)
+  })
+  //? Call
+  console.error("abc");
+  console.log(deburgger.read())
+</script>
+</body>
+</html>
