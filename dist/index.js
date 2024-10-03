@@ -95,7 +95,7 @@ _Dumbdebugger_originalConsoleError = new WeakMap(), _Dumbdebugger_originalFetch 
             const status = clonedResponse.status;
             let body = "No body";
             if (this.networkBodyCallback) {
-                body = this.networkBodyCallback(clonedResponse);
+                body = yield this.networkBodyCallback(clonedResponse);
             }
             __classPrivateFieldGet(this, _Dumbdebugger_instances, "m", _Dumbdebugger_addData).call(this, 'network', {
                 url: url,

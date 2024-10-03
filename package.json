@@ -1,6 +1,6 @@
 {
     "name": "@dumbpackages/dumbjsdebugger",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "description": "Dumb logs and network recorder.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

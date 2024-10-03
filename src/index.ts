@@ -1,6 +1,6 @@
 interface DumbdebuggerOptions {
     screenshotCallback?: () => Promise<string>;
-    networkBodyCallback?: (response:Response) => string;
+    networkBodyCallback?: (response:Response) => Promise<string>;
     maxData?: MaxData;
 }
 
@@ -36,7 +36,7 @@ export class Dumbdebugger {
     readonly #originalConsoleError: any;
     readonly #originalFetch: any;
     screenshotCallback: () => Promise<string>;
-    networkBodyCallback: (response:Response) => string;
+    networkBodyCallback: (response:Response) => Promise<string>;
     #debouncedCaptureScreenshot: any;
 
     constructor({maxData = {logs: 30, screenshots: 8, network: 30}, screenshotCallback, networkBodyCallback}: DumbdebuggerOptions) {
@@ -77,7 +77,7 @@ export class Dumbdebugger {
                 const status = clonedResponse.status;
                 let body = "No body"
                 if(this.networkBodyCallback){
-                    body = this.networkBodyCallback(clonedResponse)
+                    body = await this.networkBodyCallback(clonedResponse)
                 }
                 this.#addData('network', {
                     url: url,
