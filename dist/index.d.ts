@@ -1,5 +1,6 @@
 interface DumbdebuggerOptions {
     screenshotCallback?: () => Promise<string>;
+    networkBodyCallback?: (response: Response) => string;
     maxData?: MaxData;
 }
 interface DebugData {
@@ -23,7 +24,8 @@ export declare class Dumbdebugger {
     data: DebugData;
     maxData: MaxData;
     screenshotCallback: () => Promise<string>;
-    constructor({ maxData, screenshotCallback }: DumbdebuggerOptions);
+    networkBodyCallback: (response: Response) => string;
+    constructor({ maxData, screenshotCallback, networkBodyCallback }: DumbdebuggerOptions);
     start(capturing: any): void;
     read(): {
         system: {

@@ -27,7 +27,7 @@ function debounce(func, wait) {
     };
 }
 export class Dumbdebugger {
-    constructor({ maxData = { logs: 30, screenshots: 8, network: 30 }, screenshotCallback }) {
+    constructor({ maxData = { logs: 30, screenshots: 8, network: 30 }, screenshotCallback, networkBodyCallback }) {
         _Dumbdebugger_instances.add(this);
         _Dumbdebugger_originalConsoleError.set(this, void 0);
         _Dumbdebugger_originalFetch.set(this, void 0);
@@ -35,9 +35,13 @@ export class Dumbdebugger {
         if (screenshotCallback && typeof screenshotCallback !== 'function') {
             throw new Error("screenshotCallback must be a function");
         }
+        if (networkBodyCallback && typeof networkBodyCallback !== 'function') {
+            throw new Error("networkBodyCallback must be a function");
+        }
         this.data = { logs: [], network: [], screenshots: [] };
         this.maxData = maxData;
         this.screenshotCallback = screenshotCallback;
+        this.networkBodyCallback = networkBodyCallback;
         __classPrivateFieldSet(this, _Dumbdebugger_originalConsoleError, console.error, "f");
         __classPrivateFieldSet(this, _Dumbdebugger_originalFetch, window.fetch.bind(window), "f");
         __classPrivateFieldSet(this, _Dumbdebugger_debouncedCaptureScreenshot, debounce(__classPrivateFieldGet(this, _Dumbdebugger_instances, "m", _Dumbdebugger_captureScreenshot).bind(this), 350), "f");
@@ -87,10 +91,16 @@ _Dumbdebugger_originalConsoleError = new WeakMap(), _Dumbdebugger_originalFetch 
     window.fetch = (...args) => {
         return __classPrivateFieldGet(this, _Dumbdebugger_originalFetch, "f").call(this, ...args).then((response) => __awaiter(this, void 0, void 0, function* () {
             const clonedResponse = response.clone(); // Clone la réponse
+            const url = encodeURI(clonedResponse.url);
+            const status = clonedResponse.status;
+            let body = "No body";
+            if (this.networkBodyCallback) {
+                body = this.networkBodyCallback(clonedResponse);
+            }
             __classPrivateFieldGet(this, _Dumbdebugger_instances, "m", _Dumbdebugger_addData).call(this, 'network', {
-                url: encodeURI(clonedResponse.url),
-                status: clonedResponse.status,
-                body: clonedResponse.status === 500 ? yield clonedResponse.text() : 'Not Recorded'
+                url: url,
+                status: status,
+                body: body
             });
             return response;
         }));
