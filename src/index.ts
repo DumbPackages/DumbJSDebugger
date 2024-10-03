@@ -1,5 +1,6 @@
 interface DumbdebuggerOptions {
     screenshotCallback?: () => Promise<string>;
+    networkBodyCallback?: (response:Response) => string;
     maxData?: MaxData;
 }
 
@@ -35,15 +36,20 @@ export class Dumbdebugger {
     readonly #originalConsoleError: any;
     readonly #originalFetch: any;
     screenshotCallback: () => Promise<string>;
+    networkBodyCallback: (response:Response) => string;
     #debouncedCaptureScreenshot: any;
 
-    constructor({maxData = {logs: 30, screenshots: 8, network: 30}, screenshotCallback}: DumbdebuggerOptions) {
+    constructor({maxData = {logs: 30, screenshots: 8, network: 30}, screenshotCallback, networkBodyCallback}: DumbdebuggerOptions) {
         if (screenshotCallback && typeof screenshotCallback !== 'function') {
             throw new Error("screenshotCallback must be a function");
+        }
+        if (networkBodyCallback && typeof networkBodyCallback !== 'function') {
+            throw new Error("networkBodyCallback must be a function");
         }
         this.data = {logs: [], network: [], screenshots: []};
         this.maxData = maxData;
         this.screenshotCallback = screenshotCallback;
+        this.networkBodyCallback = networkBodyCallback;
         this.#originalConsoleError = console.error;
         this.#originalFetch = window.fetch.bind(window);
         this.#debouncedCaptureScreenshot = debounce(this.#captureScreenshot.bind(this), 350);
@@ -67,10 +73,16 @@ export class Dumbdebugger {
         window.fetch = (...args) => {
             return this.#originalFetch(...args).then(async response => {
                 const clonedResponse = response.clone(); // Clone la réponse
+                const url = encodeURI(clonedResponse.url)
+                const status = clonedResponse.status;
+                let body = "No body"
+                if(this.networkBodyCallback){
+                    body = this.networkBodyCallback(clonedResponse)
+                }
                 this.#addData('network', {
-                    url: encodeURI(clonedResponse.url),
-                    status: clonedResponse.status,
-                    body: clonedResponse.status === 500 ? await clonedResponse.text() : 'Not Recorded'
+                    url: url,
+                    status: status,
+                    body: body
                 });
                 return response;
             });
