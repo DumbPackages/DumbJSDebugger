@@ -1,75 +1,134 @@
+interface DumbdebuggerOptions {
+    screenshotCallback?: () => Promise<string>;
+    maxData?: MaxData;
+}
+
+interface DebugData {
+    system?: {
+        screen: string,
+        userAgent: string,
+        mobile?: boolean,
+        platform?: string
+    }
+    logs: Array<any>;
+    network: Array<any>;
+    screenshots: Array<string>;
+}
+
+interface MaxData {
+    logs: number;
+    network: number;
+    screenshots: number;
+}
+
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+    let timeout: NodeJS.Timeout;
+    return function (this: any, ...args: Parameters<T>) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    } as T;
+}
 
 export class Dumbdebugger {
-  private readonly data: { logs: any[]; network: any[] };
-   readonly #originalConsoleError: (...data: any[]) => void;
-   readonly #originalFetch: (input: (RequestInfo | URL), init?: RequestInit) => Promise<Response>;
-  constructor() {
-    this.data = { logs: [], network: [] };
-    this.#originalConsoleError = console.error;
-    this.#originalFetch = window.fetch.bind(window);
-  }
-  #captureLogs() {
-    console.error = (...args) => {
-      this.#addData('logs', {
-        type: 'error',
-        message: args[0],
-        arguments: args
-      });
-      this.#originalConsoleError(...args);
-    };
-  }
+    data: DebugData;
+    maxData: MaxData;
+    readonly #originalConsoleError: any;
+    readonly #originalFetch: any;
+    screenshotCallback: () => Promise<string>;
+    #debouncedCaptureScreenshot: any;
 
-   #captureNetwork() {
-    window.fetch = (...args) => {
-      return this.#originalFetch(...args).then(response => {
-        this.#addData('network', {
-          url: encodeURI(response.url),
-          status: response.status,
-          body: response.status === 500 ? response.text() : 'Not Recorded'
-        });
-        return response;
-      });
-    };
-  }
-
-  #addData(type, data) {
-    this.data[type].push(data);
-    if (this.data[type].length > 30) {
-      this.data[type].shift();
-    }
-  }
-
-  start(capturing) {
-    capturing.forEach(c => {
-      if (c === 'logs') this.#captureLogs();
-      if (c === 'network') this.#captureNetwork();
-    });
-  }
-
-  read() {
-    return {
-      screen: `${screen.width} x ${screen.height}`,
-      userAgent: window.navigator.userAgent,
-      ...(()=>{
-        const nav = navigator as any;
-        if(nav.userAgentData){
-          return {
-            mobile:nav.userAgentData.mobile,
-            platform: nav.userAgentData.platform,
-          }
+    constructor({maxData = {logs: 30, screenshots: 8, network: 30}, screenshotCallback}: DumbdebuggerOptions) {
+        if (screenshotCallback && typeof screenshotCallback !== 'function') {
+            throw new Error("screenshotCallback must be a function");
         }
-        return {}
-      })(),
-      ...this.data
-    };
-  }
+        this.data = {logs: [], network: [], screenshots: []};
+        this.maxData = maxData;
+        this.screenshotCallback = screenshotCallback;
+        this.#originalConsoleError = console.error;
+        this.#originalFetch = window.fetch.bind(window);
+        this.#debouncedCaptureScreenshot = debounce(this.#captureScreenshot.bind(this), 350);
+    }
 
-  stop(capturing) {
-    if (capturing.includes('logs')) {
-      console.error = this.#originalConsoleError;
+    #captureLogs() {
+        console.error = (...args) => {
+            this.#addData('logs', {
+                type: 'error',
+                message: args[0],
+                arguments: args
+            });
+            this.#originalConsoleError(...args);
+            if (!args[0].startsWith('dumbjsdebugger')) {
+                void this.#debouncedCaptureScreenshot()
+            }
+        };
     }
-    if (capturing.includes('network')) {
-      window.fetch = this.#originalFetch;
+
+    #captureNetwork() {
+        window.fetch = (...args) => {
+            return this.#originalFetch(...args).then(async response => {
+                const clonedResponse = response.clone(); // Clone la réponse
+                this.#addData('network', {
+                    url: encodeURI(clonedResponse.url),
+                    status: clonedResponse.status,
+                    body: clonedResponse.status === 500 ? await clonedResponse.text() : 'Not Recorded'
+                });
+                return response;
+            });
+        };
     }
-  }
+
+    async #captureScreenshot() {
+        try {
+            if (!this.screenshotCallback) {
+                return;
+            }
+            const screenshotData = await this.screenshotCallback();
+            this.#addData('screenshots', screenshotData);
+        } catch (error) {
+            console.warn('dumbjsdebugger : Screenshot capture failed:', error);
+        }
+    }
+
+    #addData(type, data) {
+        this.data[type].push(data);
+        if (this.data[type].length > this.maxData[type]) {
+            this.data[type].shift();
+        }
+    }
+
+    start(capturing) {
+        capturing.forEach(c => {
+            if (c === 'logs') this.#captureLogs();
+            if (c === 'network') this.#captureNetwork();
+        });
+    }
+
+    read() {
+        return {
+            system: {
+                screen: `${screen.width} x ${screen.height}`,
+                userAgent: window.navigator.userAgent,
+                ...(() => {
+                    const nav = navigator as any;
+                    if (nav.userAgentData) {
+                        return {
+                            mobile: nav.userAgentData.mobile,
+                            platform: nav.userAgentData.platform,
+                        }
+                    }
+                    return {}
+                })()
+            },
+            ...this.data
+        };
+    }
+
+    stop(capturing) {
+        if (capturing.includes('logs')) {
+            console.error = this.#originalConsoleError;
+        }
+        if (capturing.includes('network')) {
+            window.fetch = this.#originalFetch;
+        }
+    }
 }

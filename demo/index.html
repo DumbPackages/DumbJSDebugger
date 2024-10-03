@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <title>dumbdebugger JS demo</title>
+  <script type="text/javascript" src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <link
     rel="stylesheet"
     href="https://unpkg.com/spectre.css/dist/spectre.min.css"
@@ -40,16 +41,29 @@
 <script type="module">
 
   import {Dumbdebugger} from '../dist/index.js';
-  const deburgger = new Dumbdebugger();
+
+  const deburgger = new Dumbdebugger({
+    screenshotCallback: async () => {
+      const canvas = await window.html2canvas(document.body, {logging: false});
+      return canvas.toDataURL('image/jpeg', 0.5);
+    }
+  });
   console.log(deburgger)
   deburgger.start(['logs', 'network'])
 
-  fetch('https://jsonplaceholder.typicode.com/todos').then((res)=>{
+  fetch('https://jsonplaceholder.typicode.com/todos').then((res) => {
     console.log(res)
   })
   //? Call
   console.error("abc");
-  console.log(deburgger.read())
+  console.error("ab2");
+  setTimeout(() => {
+  console.error("ab3");
+  }, 2000)
+  setTimeout(() => {
+    console.log(deburgger.read())
+  }, 7000)
+
 </script>
 </body>
 </html>
